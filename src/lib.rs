@@ -162,7 +162,7 @@ impl NeuralNetwork {
         let change_percentage = 25. / 100.;
         let total_clones = 10;
         fn offset(a: &Vec<f64>, b: &Vec<f64>) -> f64 {
-            iter::zip(a, b).map(|(&a, &b)| (a - b)).sum::<f64>().abs() // .abs()
+            iter::zip(a, b).map(|(&a, &b)| (a - b).abs()).sum::<f64>()
         }
 
         let mut rng = rand::thread_rng();
@@ -184,13 +184,16 @@ impl NeuralNetwork {
 
             for idx in sample {
                 let neuron = neurons.get_mut(idx).unwrap();
-                neuron.randomize_weights((neuron.weights.len() as f64 / 4.).ceil() as usize, -0.75..0.75);
+                neuron.randomize_weights(
+                    (neuron.weights.len() as f64 / 4.).ceil() as usize,
+                    -0.75..0.75,
+                );
                 neuron.randomize_bias(-0.75..0.75);
             }
 
             let curr_offset = offset(&curr_network.process(&input), &output);
 
-            println!("PREV {}, CURR {}", &prev_offset, &curr_offset);
+            //println!("PREV {}, CURR {}", &prev_offset, &curr_offset);
             if curr_offset < prev_offset {
                 prev_network = curr_network;
                 prev_offset = curr_offset;
@@ -198,50 +201,8 @@ impl NeuralNetwork {
         }
 
         prev_network
-        /*
-        let mut clones = (0..total_clones)
-            .map(|_| self.clone())
-            .collect::<Vec<NeuralNetwork>>();
-        let mut offsets = Vec::<f64>::new();
-        let o = self.process(&input);
-        offsets.push(
-            iter::zip(o.iter(), input.iter())
-                .map(|(&a, &b)| (a - b).abs())
-                .sum(),
-        );
-        let mut smallest_idx = 0;
-        for mut clone in clones {
-            let sam = sample(
-                &mut rng,
-                total_neurons,
-                (total_neurons as f64 * change_percentage).ceil() as usize,
-            );
-            let mut neurons = clone.get_mut_all_neurons();
-            for idx in sam {
-                let neuron = neurons.get_mut(idx).unwrap();
-                neuron.randomize_weights(neuron.weights.len() / 4 as usize, -0.5..0.5);
-                neuron.randomize_bias(-0.25..0.25);
-            }
-            offsets.push(
-                iter::zip(clone.process(&input).iter(), input.iter())
-                    .map(|(&a, &b)| (a - b).abs())
-                    .sum(),
-            );
-            if offsets.last().unwrap() < offsets.get(smallest_idx).unwrap() {
-                smallest_idx = offsets.len() - 1;
-            }
-        }
-
-        match smallest_idx {
-            1 => self,
-            _ => clones.swap_remove(smallest_idx)
-        }
-        // TODO: make it so only the smallest offset NN is stored, and the value of the offset.
-         */
     }
 }
-
-// everything after this is for checkin/debuggin purposes
 
 impl fmt::Display for NeuralNetwork {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
