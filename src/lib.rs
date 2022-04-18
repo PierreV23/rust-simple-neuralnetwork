@@ -53,8 +53,9 @@ impl Neuron {
     pub fn randomize_weights(&mut self, amount_of_weights: usize, range: Range<f64>) {
         if amount_of_weights < 1 || amount_of_weights > self.weights.len() {
             panic!(
-                "Argument `amount_of_weights` has to be 0<n<{}",
-                self.weights.len()
+                "Argument `amount_of_weights` has to be 0<n<{}, yours was {}",
+                self.weights.len(),
+                amount_of_weights,
             )
         }
         let mut rng = rand::thread_rng();
@@ -87,14 +88,10 @@ impl NeuralLayer {
                 .collect::<Vec<_>>(),
         }
     }
-    pub fn process(&self, input: Vec<f64>) -> Vec<f64> {
+    pub fn process(&self, input: &Vec<f64>) -> Vec<f64> {
         self.neurons
             .iter()
-            // TODO?:
-            // undo the need to reference input,
-            // this would mean input would have to get copied multiple times,
-            // so problaby bad idea.
-            .map(|neuron| neuron.process(&input))
+            .map(|neuron| neuron.process(input))
             .collect::<Vec<f64>>()
     }
     pub fn get_mut_neurons(&mut self) -> &mut Vec<Neuron> {
@@ -143,11 +140,17 @@ impl NeuralNetwork {
             layers,
         }
     }
-    pub fn process(&self, inputs: &Vec<f64>) -> Vec<f64> {
-        if self.total_inputs != inputs.len() {
-            panic!("The amount of inputs is incorrect, this network was made to take {} inputs, yet you gave {}", self.total_inputs, inputs.len())
+    pub fn process(&self, input: &Vec<f64>) -> Vec<f64> {
+        if self.total_inputs != input.len() {
+            panic!("The amount of inputs is incorrect, this network was made to take {} inputs, yet you gave {}", self.total_inputs, input.len())
         }
-        Vec::new()
+        let mut output;
+        let mut input = input.clone();
+        for layer in self.layers.iter() {
+            output = layer.process(&input);
+            input = output;
+        }
+        input
     }
     pub fn get_mut_neurons(&mut self) -> Vec<&mut Neuron> {
         self.layers
@@ -159,7 +162,7 @@ impl NeuralNetwork {
         let change_percentage = 25. / 100.;
         let total_clones = 10;
         fn offset(a: &Vec<f64>, b: &Vec<f64>) -> f64 {
-            iter::zip(a, b).map(|(&a, &b)| (a - b).abs()).sum()
+            iter::zip(a, b).map(|(&a, &b)| (a - b)).sum::<f64>().abs() // .abs()
         }
 
         let mut rng = rand::thread_rng();
@@ -181,8 +184,8 @@ impl NeuralNetwork {
 
             for idx in sample {
                 let neuron = neurons.get_mut(idx).unwrap();
-                neuron.randomize_weights(neuron.weights.len() / 4 as usize, -0.5..0.5);
-                neuron.randomize_bias(-0.25..0.25);
+                neuron.randomize_weights((neuron.weights.len() as f64 / 4.).ceil() as usize, -0.75..0.75);
+                neuron.randomize_bias(-0.75..0.75);
             }
 
             let curr_offset = offset(&curr_network.process(&input), &output);
@@ -260,6 +263,7 @@ mod tests {
     fn it_works() {
         use crate::sigmoid;
         let mut network = NeuralNetwork::new(vec![2, 4, 2], 5, Some(sigmoid));
+        println!("TEST-TEST-TEST-TEST-TEST-TEST-TEST-TEST-TEST-TEST-TEST-TEST-TEST-TEST-TEST-");
         assert_eq!(format!("{}", network), "5 2 4 ")
     }
 }
