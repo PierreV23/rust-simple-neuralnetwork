@@ -10,11 +10,15 @@ fn step_function(n: f64) -> f64 {
     }
 }
 
+fn linear(n: f64) -> f64 {
+    n * 2.
+}
+
 fn main() {
-    let mut network = NeuralNetwork::new(vec![20, 50, 10], 1, Some(step_function));
-    for _ in 0..50 {
-        for n in 2..15u8 {
-            network = network.evolve(vec![n as f64], vec![2. * n as f64], 500); // n.pow(2).into()
+    let mut network = NeuralNetwork::new(vec![20, 20, 20, 20], 1, Some(|n| n.powf(2.)));
+    for _ in 0..300 {
+        for n in 0..20u8 {
+            network = network.evolve(vec![n as f64], vec![2. * n as f64], 400); // n.pow(2).into()
             let thing: f64 = network.process(&vec![n as f64]).iter().sum();
             println!("{}**2 = {}", n, thing);
         }

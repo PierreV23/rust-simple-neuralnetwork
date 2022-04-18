@@ -167,11 +167,11 @@ impl NeuralNetwork {
 
         let mut rng = rand::thread_rng();
 
-        let mut prev_network = self.clone();
-        let mut prev_offset = offset(&prev_network.process(&input), &output);
+        let mut best_network = self.clone();
+        let mut best_offset = offset(&best_network.process(&input), &output);
 
         for _ in 0..amount_of_children {
-            let mut curr_network = self.clone();
+            let mut curr_network = best_network.clone(); // self -> best
 
             let mut neurons = curr_network.get_mut_neurons();
             let total_neurons = neurons.len();
@@ -186,21 +186,21 @@ impl NeuralNetwork {
                 let neuron = neurons.get_mut(idx).unwrap();
                 neuron.randomize_weights(
                     (neuron.weights.len() as f64 / 4.).ceil() as usize,
-                    -0.75..0.75,
+                    -0.1..0.1,
                 );
-                neuron.randomize_bias(-0.75..0.75);
+                neuron.randomize_bias(-0.1..0.1);
             }
 
             let curr_offset = offset(&curr_network.process(&input), &output);
 
             //println!("PREV {}, CURR {}", &prev_offset, &curr_offset);
-            if curr_offset < prev_offset {
-                prev_network = curr_network;
-                prev_offset = curr_offset;
+            if curr_offset < best_offset {
+                best_network = curr_network;
+                best_offset = curr_offset;
             }
         }
 
-        prev_network
+        best_network
     }
 }
 
