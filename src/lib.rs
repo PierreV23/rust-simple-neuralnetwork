@@ -1,10 +1,14 @@
+#![allow(unused_variables, unused_imports)]
+
 use core::panic;
 use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
-use rand::seq::index::sample;
+use rand::seq::index;
 use rand::Rng;
 use std::f64::consts::E;
+use std::fmt;
 use std::iter;
+use std::ops::IndexMut;
 use std::ops::Range;
 
 pub type ActivationFunction = fn(f64) -> f64;
@@ -14,6 +18,7 @@ pub fn sigmoid(n: f64) -> f64 {
     1. - 1. / (1. + E.powf(n))
 }
 
+#[derive(Clone)]
 pub struct Neuron {
     weights: Vec<f64>,
     bias: f64,
@@ -53,7 +58,7 @@ impl Neuron {
             )
         }
         let mut rng = rand::thread_rng();
-        let chosen = sample(&mut rng, self.weights.len(), amount_of_weights);
+        let chosen = index::sample(&mut rng, self.weights.len(), amount_of_weights);
         for idx in chosen.iter() {
             let weight = self.weights.get_mut(idx).expect("How did you even get this to happen, smh. Anyway rng somehow generated an out of range index. This will probably never happen, why are you reading the code, going to commit plagerism????");
             *weight += rng.gen_range(range.clone());
@@ -65,6 +70,7 @@ impl Neuron {
     }
 }
 
+#[derive(Clone)]
 pub struct NeuralLayer {
     neurons: Vec<Neuron>,
 }
@@ -96,6 +102,7 @@ impl NeuralLayer {
     }
 }
 
+#[derive(Clone)]
 pub struct NeuralNetwork {
     total_inputs: usize,
     layers: Vec<NeuralLayer>,
@@ -136,34 +143,123 @@ impl NeuralNetwork {
             layers,
         }
     }
-    pub fn process(&self, inputs: Vec<f64>) -> Vec<f64> {
+    pub fn process(&self, inputs: &Vec<f64>) -> Vec<f64> {
         if self.total_inputs != inputs.len() {
             panic!("The amount of inputs is incorrect, this network was made to take {} inputs, yet you gave {}", self.total_inputs, inputs.len())
         }
         Vec::new()
     }
-    pub fn get_mut_all_neurons(&mut self) -> Vec<&mut Neuron> {
+    pub fn get_mut_neurons(&mut self) -> Vec<&mut Neuron> {
         self.layers
             .iter_mut()
             .flat_map(|layer| layer.get_mut_neurons())
             .collect::<Vec<&mut Neuron>>()
     }
-    pub fn evolve(
-        &mut self,
-        input: Vec<f64>,
-        output: Vec<f64>,
-        children_per_generation: usize,
-        generations: usize,
-    ) {
-        ()
+    pub fn evolve(self, input: Vec<f64>, output: Vec<f64>, amount_of_children: usize) -> Self {
+        let change_percentage = 25. / 100.;
+        let total_clones = 10;
+        fn offset(a: &Vec<f64>, b: &Vec<f64>) -> f64 {
+            iter::zip(a, b).map(|(&a, &b)| (a - b).abs()).sum()
+        }
+
+        let mut rng = rand::thread_rng();
+
+        let mut prev_network = self.clone();
+        let mut prev_offset = offset(&prev_network.process(&input), &output);
+
+        for _ in 0..amount_of_children {
+            let mut curr_network = self.clone();
+
+            let mut neurons = curr_network.get_mut_neurons();
+            let total_neurons = neurons.len();
+
+            let sample = index::sample(
+                &mut rng,
+                total_neurons,
+                (total_neurons as f64 * change_percentage).ceil() as usize,
+            );
+
+            for idx in sample {
+                let neuron = neurons.get_mut(idx).unwrap();
+                neuron.randomize_weights(neuron.weights.len() / 4 as usize, -0.5..0.5);
+                neuron.randomize_bias(-0.25..0.25);
+            }
+
+            let curr_offset = offset(&curr_network.process(&input), &output);
+
+            println!("PREV {}, CURR {}", &prev_offset, &curr_offset);
+            if curr_offset < prev_offset {
+                prev_network = curr_network;
+                prev_offset = curr_offset;
+            }
+        }
+
+        prev_network
+        /*
+        let mut clones = (0..total_clones)
+            .map(|_| self.clone())
+            .collect::<Vec<NeuralNetwork>>();
+        let mut offsets = Vec::<f64>::new();
+        let o = self.process(&input);
+        offsets.push(
+            iter::zip(o.iter(), input.iter())
+                .map(|(&a, &b)| (a - b).abs())
+                .sum(),
+        );
+        let mut smallest_idx = 0;
+        for mut clone in clones {
+            let sam = sample(
+                &mut rng,
+                total_neurons,
+                (total_neurons as f64 * change_percentage).ceil() as usize,
+            );
+            let mut neurons = clone.get_mut_all_neurons();
+            for idx in sam {
+                let neuron = neurons.get_mut(idx).unwrap();
+                neuron.randomize_weights(neuron.weights.len() / 4 as usize, -0.5..0.5);
+                neuron.randomize_bias(-0.25..0.25);
+            }
+            offsets.push(
+                iter::zip(clone.process(&input).iter(), input.iter())
+                    .map(|(&a, &b)| (a - b).abs())
+                    .sum(),
+            );
+            if offsets.last().unwrap() < offsets.get(smallest_idx).unwrap() {
+                smallest_idx = offsets.len() - 1;
+            }
+        }
+
+        match smallest_idx {
+            1 => self,
+            _ => clones.swap_remove(smallest_idx)
+        }
+        // TODO: make it so only the smallest offset NN is stored, and the value of the offset.
+         */
+    }
+}
+
+// everything after this is for checkin/debuggin purposes
+
+impl fmt::Display for NeuralNetwork {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut string = String::new();
+        for layer in self.layers.iter() {
+            //string.push_str(&layer.neurons.len().to_string());
+            string.push_str(&layer.neurons.first().unwrap().weights.len().to_string());
+            string.push(' ')
+        }
+        write!(f, "{}", string)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::NeuralNetwork;
+
     #[test]
     fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+        use crate::sigmoid;
+        let mut network = NeuralNetwork::new(vec![2, 4, 2], 5, Some(sigmoid));
+        assert_eq!(format!("{}", network), "5 2 4 ")
     }
 }
