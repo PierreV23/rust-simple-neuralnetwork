@@ -159,17 +159,17 @@ impl NeuralNetwork {
             .collect::<Vec<&mut Neuron>>()
     }
     pub fn evolve(self, input: Vec<f64>, output: Vec<f64>, amount_of_children: usize) -> Self {
-        let change_percentage = 25. / 100.;
-        let total_clones = 10;
+        let change_percentage = 0.1 / 100.;
         fn offset(a: &Vec<f64>, b: &Vec<f64>) -> f64 {
-            iter::zip(a, b).map(|(&a, &b)| (a - b).abs()).sum::<f64>()
+            iter::zip(a, b).map(|(&a, &b)| (a - b).abs().powf(1./2.)).sum::<f64>()
+            //(a.iter().sum::<f64>() - b.iter().sum::<f64>()).abs()
         }
 
         let mut rng = rand::thread_rng();
 
         let mut best_network = self.clone();
-        // let mut best_offset = offset(&best_network.process(&input), &output);
-        let mut best_offset = (output.iter().sum::<f64>() - best_network.process(&input).iter().sum::<f64>()).abs();
+        let mut best_offset = offset(&best_network.process(&input), &output);
+        // let mut best_offset = (output.iter().sum::<f64>() - best_network.process(&input).iter().sum::<f64>()).abs();
 
         for _ in 0..amount_of_children {
             let mut curr_network = best_network.clone(); // self -> best
@@ -185,15 +185,17 @@ impl NeuralNetwork {
 
             for idx in sample {
                 let neuron = neurons.get_mut(idx).unwrap();
+                let t = (neuron.weights.len() as f64 / 100.).ceil();
                 neuron.randomize_weights(
-                    (neuron.weights.len() as f64 / 4.).ceil() as usize,
-                    -5.0..5.0,
+                    (if t < 1. {1.} else {t}) as usize,
+                    //-10.0..10.0,
+                    (best_offset.abs()*-3.)..(best_offset.abs()*3.)
                 );
-                neuron.randomize_bias(-5.0..5.0);
+                neuron.randomize_bias(-5.0..5.0);//neuron.randomize_bias(/*-10.0..10.0*/(best_offset.abs()*-5.)..(best_offset.abs()*5.));
             }
 
-            //let curr_offset = offset(&curr_network.process(&input), &output);
-            let curr_offset = (output.iter().sum::<f64>() - curr_network.process(&input).iter().sum::<f64>()).abs();
+            let curr_offset = offset(&curr_network.process(&input), &output);
+            // let curr_offset = (output.iter().sum::<f64>() - curr_network.process(&input).iter().sum::<f64>()).abs();
 
             //println!("PREV {}, CURR {}", &prev_offset, &curr_offset);
             if curr_offset < best_offset {
