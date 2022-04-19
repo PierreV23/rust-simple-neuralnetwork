@@ -102,7 +102,7 @@ impl NeuralLayer {
 #[derive(Clone)]
 pub struct NeuralNetwork {
     total_inputs: usize,
-    layers: Vec<NeuralLayer>,
+    pub layers: Vec<NeuralLayer>,
 }
 
 impl NeuralNetwork {
@@ -142,7 +142,7 @@ impl NeuralNetwork {
     }
     pub fn process(&self, input: &Vec<f64>) -> Vec<f64> {
         if self.total_inputs != input.len() {
-            panic!("The amount of inputs is incorrect, this network was made to take {} inputs, yet you gave {}", self.total_inputs, input.len())
+            panic!("The amount of inputs is incorrect, this network was made to take {} inputs, yet you gave {}; {:?}", self.total_inputs, input.len(), input)
         }
         let mut output;
         let mut input = input.clone();
@@ -168,7 +168,8 @@ impl NeuralNetwork {
         let mut rng = rand::thread_rng();
 
         let mut best_network = self.clone();
-        let mut best_offset = offset(&best_network.process(&input), &output);
+        // let mut best_offset = offset(&best_network.process(&input), &output);
+        let mut best_offset = (output.iter().sum::<f64>() - best_network.process(&input).iter().sum::<f64>()).abs();
 
         for _ in 0..amount_of_children {
             let mut curr_network = best_network.clone(); // self -> best
@@ -186,12 +187,13 @@ impl NeuralNetwork {
                 let neuron = neurons.get_mut(idx).unwrap();
                 neuron.randomize_weights(
                     (neuron.weights.len() as f64 / 4.).ceil() as usize,
-                    -0.1..0.1,
+                    -5.0..5.0,
                 );
-                neuron.randomize_bias(-0.1..0.1);
+                neuron.randomize_bias(-5.0..5.0);
             }
 
-            let curr_offset = offset(&curr_network.process(&input), &output);
+            //let curr_offset = offset(&curr_network.process(&input), &output);
+            let curr_offset = (output.iter().sum::<f64>() - curr_network.process(&input).iter().sum::<f64>()).abs();
 
             //println!("PREV {}, CURR {}", &prev_offset, &curr_offset);
             if curr_offset < best_offset {

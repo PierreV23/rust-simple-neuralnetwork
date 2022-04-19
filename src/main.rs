@@ -15,11 +15,12 @@ fn linear(n: f64) -> f64 {
 }
 
 fn main() {
-    let mut network = NeuralNetwork::new(vec![20, 20, 20, 20], 1, Some(|n| n.powf(2.)));
+    let mut network = NeuralNetwork::new(vec![20, 20, 20, 40], 2, Some(sigmoid));
+    //network.layers.push(lib::NeuralLayer::new(1, 20, linear));
     for _ in 0..300 {
-        for n in 0..20u8 {
-            network = network.evolve(vec![n as f64], vec![2. * n as f64], 400); // n.pow(2).into()
-            let thing: f64 = network.process(&vec![n as f64]).iter().sum();
+        for n in 0..13u8 {
+            network = network.evolve(vec![n as f64, 2.], vec![n.pow(2).into()], 50); //  2. * n as f64
+            let thing: f64 = network.process(&vec![n as f64, 2.]).iter().sum();
             println!("{}**2 = {}", n, thing);
         }
     }
